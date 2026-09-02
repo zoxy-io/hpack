@@ -49,7 +49,15 @@ const assert = @import("assert.zig").assert;
 /// whose high bits carry a representation's type tag, and the representations
 /// with no tag bits — HPACK's dynamic table size update successor and both
 /// protocols' string lengths — use seven or eight.
-pub const prefix_bits_max: u4 = 8;
+///
+/// Reachable both here and on an instantiation (`Integer(u32).prefix_bits_max`),
+/// because a call site holds the instantiation and not this namespace: it
+/// aliases `const integer = hpack.integer.Integer(u32)` once and then names
+/// everything through it. `prefix_bits_max_value` exists only so the two
+/// spellings can be one constant without the inner one shadowing the outer.
+pub const prefix_bits_max: u4 = prefix_bits_max_value;
+
+const prefix_bits_max_value: u4 = 8;
 
 /// The prefixed-integer codec for a given value width.
 ///
@@ -77,6 +85,10 @@ pub fn Integer(comptime Value: type) type {
         /// decoder facing the open internet, and it is a deliberate deviation
         /// rather than an oversight.
         pub const continuation_octets_max: u32 = (@bitSizeOf(Value) + 6) / 7;
+
+        /// The same constant as the namespace-level one, reachable through an
+        /// instantiation so a call site needs only the one alias.
+        pub const prefix_bits_max: u4 = prefix_bits_max_value;
 
         comptime {
             assert(@typeInfo(Value) == .int);
@@ -123,7 +135,7 @@ pub fn Integer(comptime Value: type) type {
         /// the caller's type tag and are ignored here.
         pub fn decode(source: []const u8, prefix_bits: u4) DecodeError!Decoded {
             assert(prefix_bits >= 1);
-            assert(prefix_bits <= prefix_bits_max);
+            assert(prefix_bits <= prefix_bits_max_value);
             if (source.len == 0) return error.Incomplete;
 
             const prefix_max: u64 = (@as(u64, 1) << prefix_bits) - 1;
@@ -175,11 +187,11 @@ pub fn Integer(comptime Value: type) type {
         /// across two arguments invites a pair that disagrees.
         pub fn encode(target: []u8, value: Value, prefix_bits: u4, tag: u8) EncodeError!u32 {
             assert(prefix_bits >= 1);
-            assert(prefix_bits <= prefix_bits_max);
+            assert(prefix_bits <= prefix_bits_max_value);
             // The tag must not reach into the prefix, or it would be read back
             // as part of the value. An eight-bit prefix leaves no room for a
             // tag at all, so there is nothing to check there.
-            if (prefix_bits < prefix_bits_max) {
+            if (prefix_bits < prefix_bits_max_value) {
                 assert((tag & ((@as(u16, 1) << prefix_bits) - 1)) == 0);
             }
 
@@ -219,7 +231,7 @@ pub fn Integer(comptime Value: type) type {
         /// whole representation instead of unwinding a partial write.
         pub fn encodedLength(value: Value, prefix_bits: u4) u32 {
             assert(prefix_bits >= 1);
-            assert(prefix_bits <= prefix_bits_max);
+            assert(prefix_bits <= prefix_bits_max_value);
             const prefix_max: u64 = (@as(u64, 1) << prefix_bits) - 1;
             const wide: u64 = value;
             if (wide < prefix_max) return 1;
@@ -384,6 +396,10 @@ test "encode reports OutputTooLong instead of writing past the target" {
 }
 
 test "the bound is the width's, derived rather than chosen" {
+    // And the prefix bound is reachable through an instantiation, which is how
+    // every call site names it: one alias, everything through it.
+    try testing.expectEqual(prefix_bits_max, Hpack.prefix_bits_max);
+    try testing.expectEqual(prefix_bits_max, Qpack.prefix_bits_max);
     try testing.expectEqual(@as(u32, 5), Hpack.continuation_octets_max);
     try testing.expectEqual(@as(u32, 9), Qpack.continuation_octets_max);
     try testing.expectEqual(@as(u64, std.math.maxInt(u32)), Hpack.value_max);
