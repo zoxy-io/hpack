@@ -1,0 +1,22 @@
+.{
+    .name = .hpack,
+    .version = "0.0.0",
+    .fingerprint = 0xd9fa4aae27e659ac, // Changing this has security and trust implications.
+    .minimum_zig_version = "0.16.0",
+    // Zero dependencies beyond the Zig toolchain, and this stays empty. This
+    // package sits at the bottom of the organisation's graph — h2 and h3 depend
+    // on it and it depends on nothing — so a dependency here would be one both
+    // of them inherit without asking. `scripts/lint.zig` forbids `@cImport`,
+    // and every buffer is caller-owned, so there is nothing left for one to
+    // provide.
+    .dependencies = .{},
+    // What ships to a consumer. `fuzz/`, `bench/`, `checks/` and `scripts/` are
+    // gates rather than library.
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "LICENSE",
+        "README.md",
+    },
+}
