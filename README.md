@@ -6,8 +6,8 @@
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/zoxy-io/hpack/test-x86_64-windows.yml?label=x86_64-windows)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/zoxy-io/hpack/test-macos.yml?label=macos)
 
-RFC 7541's two primitives — the Huffman code and the prefixed integer — as one
-package, because **HPACK and QPACK share them exactly**.
+The two primitives HPACK is built out of — RFC 7541's Huffman code and its
+prefixed integer — and the two QPACK adopts unchanged.
 
 ## Scope
 
@@ -17,15 +17,14 @@ package, because **HPACK and QPACK share them exactly**.
 * `memory.overlaps`, the span-arithmetic guard both consumers assert with
   before a `@memcpy` that is undefined on overlap.
 
-**Not HPACK.** The representations, the static table and the dynamic table are
-HTTP/2's, and they stay in [zoxy-io/h2](https://github.com/zoxy-io/h2). QPACK's
-equivalents are a different table with different indexing, and they stay in
-[zoxy-io/h3](https://github.com/zoxy-io/h3). Only the parts RFC 9204 adopts
-*verbatim* live here — §4.1.1 takes RFC 7541 §5.1, and §4.1.2 takes §5.2, with
-the same 257-symbol table.
-
-The name is the one people search for. What the package actually holds is
-narrower than the name, which is what this section is for.
+The layers above them stay with the protocol that owns them: HPACK's field line
+representations, static table and dynamic table are in
+[zoxy-io/h2](https://github.com/zoxy-io/h2), and QPACK's are in
+[zoxy-io/h3](https://github.com/zoxy-io/h3). Those are genuinely different —
+QPACK's static table is a different 99-entry table indexed from zero, and its
+dynamic table is addressed relative to an insert count that HPACK has no notion
+of. What the two protocols share is exactly what RFC 9204 §4.1.1 and §4.1.2
+adopt *verbatim*, and that is what is here.
 
 ## Why it exists
 
