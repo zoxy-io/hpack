@@ -6,36 +6,46 @@
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/zoxy-io/hpack/test-x86_64-windows.yml?label=x86_64-windows)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/zoxy-io/hpack/test-macos.yml?label=macos)
 
-The two primitives HPACK is built out of — RFC 7541's Huffman code and its
-prefixed integer — and the two QPACK adopts unchanged.
+HPACK (RFC 7541): header compression for HTTP/2, whole — and the two primitives
+HTTP/3 borrows from it.
 
 ## Scope
 
-* **RFC 7541 §5.2 and Appendix B — the Huffman code.** Encoder, decoder, and a
-  second decoder kept as a cross-check.
-* **RFC 7541 §5.1 — the prefixed integer**, parameterised by value width.
-* `memory.overlaps`, the span-arithmetic guard both consumers assert with
-  before a `@memcpy` that is undefined on overlap.
+**RFC 7541 entire.** `Decoder` and `Encoder` are the entry points.
 
-The layers above them stay with the protocol that owns them: HPACK's field line
-representations, static table and dynamic table are in
-[zoxy-io/h2](https://github.com/zoxy-io/h2), and QPACK's are in
-[zoxy-io/h3](https://github.com/zoxy-io/h3). Those are genuinely different —
-QPACK's static table is a different 99-entry table indexed from zero, and its
-dynamic table is addressed relative to an insert count that HPACK has no notion
-of. What the two protocols share is exactly what RFC 9204 §4.1.1 and §4.1.2
-adopt *verbatim*, and that is what is here.
+* **§6 field line representations** — indexed, literal with and without
+  indexing, never-indexed, and the dynamic table size update.
+* **§2.3 and Appendix A — the tables.** The 61-entry static table, and a
+  dynamic table whose storage is the caller's, sized by the
+  `SETTINGS_HEADER_TABLE_SIZE` it advertises. A caller advertising `0` passes no
+  buffer and the table disappears.
+* **§5.2 and Appendix B — the Huffman code.** Encoder, decoder, and a second
+  decoder kept as a cross-check.
+* **§5.1 — the prefixed integer**, parameterised by value width.
+* `memory.overlaps`, the span-arithmetic guard the table and the decoder assert
+  with before a `@memcpy` that is undefined on overlap.
 
-## Why it exists
+Out of scope: everything above field compression. HTTP/2's framing and its
+message rules are [zoxy-io/h2](https://github.com/zoxy-io/h2), which re-exports
+this package as `h2.hpack`. QPACK's own layers are
+[zoxy-io/h3](https://github.com/zoxy-io/h3) — its static table is a different
+99-entry table indexed from zero, and its dynamic table is addressed relative to
+an insert count HPACK has no notion of, so those genuinely are not shared.
 
-Before this package there were two copies of a 900-line vectorised Huffman
-decoder in one organisation, and a bug fixed in one was a bug still live in the
-other. The alternatives were considered in
-[h3's design notes](https://github.com/zoxy-io/h3/blob/main/docs/DESIGN.md#7-open-decisions):
-copy it again, have h3 depend on h2, or extract. Extraction won because h2
-depending on h3 or the reverse would be a cycle waiting to happen the first time
-either needed something from the other, and because "the RFC 7541 primitives" is
-a real boundary rather than a convenient one — RFC 9204 draws it in its own text.
+## Why it is not a directory inside h2
+
+RFC 9204 adopts two of these pieces verbatim: §4.1.1 takes the prefixed integer
+and §4.1.2 takes the Huffman code, with the same 257-symbol table. So h3 needs
+them, and the choice was to copy them, to have h3 depend on h2, or to extract.
+
+Copying would have put a second 900-line vectorised Huffman decoder in the
+organisation, where a bug fixed in one stays live in the other. Depending on h2
+would have made h3 build HTTP/2's frame codec to get a Huffman table.
+
+Extraction won — and RFC 7541 came out **whole** rather than in the two shared
+pieces, so that the package holding it is named for what it holds. h3 imports
+`huffman` and `integer` and nothing else; Zig prunes the rest, so it costs h3
+nothing but a line in `build.zig.zon`.
 
 ## The one thing the two protocols differ on
 
@@ -59,8 +69,8 @@ each width needs, and a further octet could not describe a representable value.
 * Caller-owned, caller-sized buffers. A Huffman decoding is at most 8/5 of its
   input, and the target's capacity is what bounds a compression bomb.
 * Zero dependencies beyond the Zig toolchain. This package sits at the bottom of
-  the organisation's graph, so a dependency here is one every consumer inherits
-  without asking.
+  the organisation's graph — h2 and h3 depend on it and it depends on nothing —
+  so a dependency here is one every consumer inherits without asking.
 * Assertions ship by default. `-Dassertions=false` removes them — and because
   this package is *two* levels below a binary, the option has to be **forwarded**
   by h2 and h3 rather than left to default. Both do; see
@@ -143,8 +153,11 @@ zig build example # build and run the usage example above
 
 ## Consumers
 
-* [zoxy-io/h2](https://github.com/zoxy-io/h2) — HPACK, at `Integer(u32)`.
-* [zoxy-io/h3](https://github.com/zoxy-io/h3) — QPACK, at `Integer(u62)`.
+* [zoxy-io/h2](https://github.com/zoxy-io/h2) — the whole package, re-exported
+  as `h2.hpack`, at `Integer(u32)`. HTTP/2 SETTINGS values are `u32` and every
+  HPACK index, length and table size is bounded by one.
+* [zoxy-io/h3](https://github.com/zoxy-io/h3) — `huffman` and `integer` only, at
+  `Integer(u62)`, because QPACK's values are bounded by a QUIC stream offset.
 
 Both are in turn consumed by [zoxy](https://github.com/zoxy-io/zoxy) (reverse
 proxy, libxev completion callbacks) and [zrk](https://github.com/zoxy-io/zrk)
