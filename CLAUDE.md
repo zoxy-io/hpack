@@ -48,7 +48,8 @@ Run the `tiger-style-reviewer` agent on the diff before committing a slice.
   correctness rule rather than a performance one: a faster decoder that accepts
   one input the reference rejects is a second spelling of a header value.
   Note **which of the two is faster is currently an open question** — the
-  ordering inverts between aarch64 and x86_64, and README.md has the numbers.
+  ordering inverts between aarch64 and x86_64, and the module comment in
+  src/huffman.zig has the numbers.
   Do not repeat the "the window is faster" claim without a fresh measurement.
 - **Every bound is a named constant** with a comptime assert relating it to its
   neighbours and a comment naming the RFC clause it comes from.
