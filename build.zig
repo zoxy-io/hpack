@@ -20,6 +20,14 @@ pub fn build(b: *std.Build) void {
     const assertions = b.option(bool, "assertions", "Compile in run-time assertions (default true)") orelse true;
     const hpack_options = b.addOptions();
     hpack_options.addOption(bool, "assertions", assertions);
+    // A marker, so this package's generated options file is distinct from a
+    // consumer's. Zig content-addresses generated files, and a file cannot be
+    // the root of two modules — so a consumer whose own options module holds
+    // nothing but `assertions: bool` with the same value would collide with
+    // this one and fail to build. That is not a hypothetical: forwarding the
+    // option, which docs/TIGER_STYLE.md requires, is what produces the
+    // identical contents. The marker is never read; its whole job is to differ.
+    hpack_options.addOption([]const u8, "package", "hpack");
 
     // The public module: consumers `@import("h3")` this.
     const hpack_module = b.addModule("hpack", .{
