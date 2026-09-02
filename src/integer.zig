@@ -59,6 +59,21 @@ pub const prefix_bits_max: u4 = prefix_bits_max_value;
 
 const prefix_bits_max_value: u4 = 8;
 
+/// The largest value a `prefix_bits`-wide prefix can hold — `2^prefix_bits - 1`
+/// — as the `u8` it has to be to mask an octet.
+///
+/// Computed with a shift that is defined for every `u4` rather than with a cast
+/// that is undefined above eight. `prefix_bits` is a *runtime* argument, so an
+/// assertion is the wrong guard for it: `-Dassertions=false` removes the check
+/// and leaves the cast reached with a value it cannot hold, which is undefined
+/// behaviour in the integer decoder both h2 and h3 are built on. Any width at
+/// or above eight saturates to a full octet, which is what an eight-bit prefix
+/// means in any case, so the saturation is the RFC's answer and not a
+/// truncation that loses one.
+fn prefixMax(prefix_bits: u4) u8 {
+    return std.math.shl(u8, @as(u8, 1), prefix_bits) -% 1;
+}
+
 /// The prefixed-integer codec for a given value width.
 ///
 /// `Value` must be an unsigned integer of at least 8 bits — a prefix alone can
@@ -138,10 +153,13 @@ pub fn Integer(comptime Value: type) type {
             assert(prefix_bits <= prefix_bits_max_value);
             if (source.len == 0) return error.Incomplete;
 
-            const prefix_max: u64 = (@as(u64, 1) << prefix_bits) - 1;
-            assert(prefix_max <= std.math.maxInt(u8));
-            const prefix: u64 = source[0] & @as(u8, @intCast(prefix_max));
+            const prefix_octet = prefixMax(prefix_bits);
+            const prefix_max: u64 = prefix_octet;
+            const prefix: u64 = source[0] & prefix_octet;
             if (prefix < prefix_max) {
+                // Both operands of the mask above are `u8`, so `prefix` is at
+                // most 255 and every `Value` this generic is used at holds it.
+                // That is the guard; the assertion only says so out loud.
                 assert(prefix <= value_max);
                 return .{ .value = @intCast(prefix), .octets = 1 };
             }
@@ -204,15 +222,18 @@ pub fn Integer(comptime Value: type) type {
             const length = encodedLength(value, prefix_bits);
             if (length > target.len) return error.OutputTooLong;
 
-            const prefix_max: u64 = (@as(u64, 1) << prefix_bits) - 1;
+            const prefix_octet = prefixMax(prefix_bits);
+            const prefix_max: u64 = prefix_octet;
             const wide: u64 = value;
             if (wide < prefix_max) {
+                // Guarded by the comparison immediately above, not by an
+                // assertion: `wide` is below a `u8`, so it fits in one.
                 target[0] = tag | @as(u8, @intCast(wide));
                 assert(length == 1);
                 return 1;
             }
 
-            target[0] = tag | @as(u8, @intCast(prefix_max));
+            target[0] = tag | prefix_octet;
             var remaining: u64 = wide - prefix_max;
             var index: u32 = 1;
             while (remaining >= 0x80) {
@@ -232,7 +253,7 @@ pub fn Integer(comptime Value: type) type {
         pub fn encodedLength(value: Value, prefix_bits: u4) u32 {
             assert(prefix_bits >= 1);
             assert(prefix_bits <= prefix_bits_max_value);
-            const prefix_max: u64 = (@as(u64, 1) << prefix_bits) - 1;
+            const prefix_max: u64 = prefixMax(prefix_bits);
             const wide: u64 = value;
             if (wide < prefix_max) return 1;
 
@@ -404,4 +425,30 @@ test "the bound is the width's, derived rather than chosen" {
     try testing.expectEqual(@as(u32, 9), Qpack.continuation_octets_max);
     try testing.expectEqual(@as(u64, std.math.maxInt(u32)), Hpack.value_max);
     try testing.expectEqual(@as(u64, (1 << 62) - 1), Qpack.value_max);
+}
+
+test "the prefix mask is total over its argument type" {
+    // `prefix_bits` is a runtime `u4`, so the old
+    // `@as(u8, @intCast((1 << prefix_bits) - 1))` was undefined behaviour for
+    // any width above eight with `-Dassertions=false`, which is one of the two
+    // builds that ship. This is the property that made the assertion the wrong
+    // guard: every value of the argument type has an answer, and the answer is
+    // an octet mask.
+    for (0..std.math.maxInt(u4) + 1) |index| {
+        const bits: u4 = @intCast(index);
+        const mask = prefixMax(bits);
+        if (bits >= 1 and bits <= prefix_bits_max_value) {
+            // The RFC 7541 section 5.1 quantity, computed the wide way as the
+            // cross-check: 2^N - 1.
+            try testing.expectEqual(@as(u8, @intCast((@as(u16, 1) << bits) - 1)), mask);
+        }
+        if (bits > prefix_bits_max_value) {
+            // Saturated rather than wrapped: an eight-bit prefix is the widest
+            // one there is, so a wider request cannot mean *less* of the octet.
+            try testing.expectEqual(@as(u8, 0xff), mask);
+        }
+    }
+    // The two the protocols actually use, spelled out.
+    try testing.expectEqual(@as(u8, 0b0001_1111), prefixMax(5));
+    try testing.expectEqual(@as(u8, 0xff), prefixMax(8));
 }
