@@ -354,6 +354,12 @@ fn planString(encoder: *const Encoder, source: []const u8) StringPlan {
     };
 }
 
+/// Both `catch unreachable` below are guarded by `writeLiteral`'s
+/// `if (total > target.len) return error.OutputTooLong`, which sums this plan
+/// and the name's before either is written — a returned error, in the binary
+/// whatever `-Dassertions` says. The assertion restates that guarantee at the
+/// point it is relied on; it is not the guarantee. `writeString` is private
+/// precisely so that this holds for every call site.
 fn writeString(target: []u8, plan: StringPlan, source: []const u8) u32 {
     assert(target.len >= plan.total());
     const tag: u8 = if (plan.coded) tag_huffman else 0;
@@ -395,6 +401,8 @@ fn writeLiteral(
     // not fit, which is a corrupt block rather than a short one.
     if (total > target.len) return error.OutputTooLong;
 
+    // Guarded by the `total > target.len` check above, not by an assertion:
+    // `total` already counts this integer's octets.
     var written = integer.encode(target, name_index orelse 0, prefix_bits, tag) catch unreachable;
     assert(written == index_length);
     if (name_plan) |plan| written += writeString(target[written..], plan, field.name);
