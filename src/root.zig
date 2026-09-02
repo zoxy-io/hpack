@@ -19,9 +19,10 @@
 //! relative to an insert count HPACK has no notion of. Those are h3's.
 //!
 //! `huffman` exports two decoders, and `huffman.decode` is the one to call.
-//! `huffman.decodeReference` is the slower nibble automaton, kept as the oracle
-//! the faster one is tested against; it is public only so the benchmark and the
-//! fuzz targets can reach it from their own modules.
+//! `huffman.decodeReference` is the nibble automaton, kept as the oracle the
+//! other is tested against; it is public only so the benchmark and the fuzz
+//! targets can reach it from their own modules. It was described here as "the
+//! slower" one, which the current numbers do not support — see huffman.zig.
 //!
 //! The one thing the two protocols do differ on is how wide an integer can be,
 //! and that is a parameter rather than a fork: see `integer.Integer`.

@@ -18,10 +18,34 @@
 //! `decodeReference` is the nibble automaton of Pajarola's "Fast Prefix Code
 //! Processing" (2003), the construction nghttp2 has used since 2014. It was
 //! `decode` until the window was measured against it, and it is kept because
-//! the case for shipping the faster one rests on their agreeing everywhere —
-//! same octets, same errors, same accept and reject. A consumer that never
-//! calls it does not pay for its table: a binary calling only `decode` is
-//! 16352 octets smaller, which is exactly the automaton's table.
+//! the two have to agree everywhere — same octets, same errors, same accept and
+//! reject. A consumer that never calls it does not pay for its table: a binary
+//! calling only `decode` is 16352 octets smaller, which is exactly the
+//! automaton's table.
+//!
+//! ## The throughput case for the window no longer holds, and is not why it ships
+//!
+//! The window replaced the automaton on a measurement — 92.1 ns against
+//! 118.7 ns, so 1.29x — recorded in the commit that extracted this package. On
+//! an Intel Core Ultra 7 258V today, in the shipping build
+//! (`-Doptimize=ReleaseFast -Dassertions=false`), it is the other way round:
+//!
+//!   huffman decode (window)     37.9 ns      205.6 ns on the long input
+//!   huffman decode (automaton)  31.2 ns      199.3 ns
+//!
+//! So the window is 1.22x *slower* on a short header value and roughly at
+//! parity on a long one. Two runs, both directions consistent, and the
+//! benchmark drives both through the same kernel on the same input — this is
+//! not a band being misread.
+//!
+//! What is *not* claimed here is which decoder is faster in general. The
+//! benchmark changed shape since that commit, the machine is not the one the
+//! original number came from, and neither of those is controlled for. What is
+//! claimed is narrower and enough: **no current measurement supports shipping
+//! the window for speed.** The reason to keep calling it is that it is the one
+//! the fuzz targets and differential tests have run against; the reason to
+//! reconsider is written here rather than left as a comment asserting a number
+//! nobody has reproduced.
 //!
 //! Validity comes free with the same lookups in both. Walking into the EOS leaf
 //! is a decoding error rather than a terminator, and the padding rules of
@@ -527,9 +551,13 @@ pub const DecodeError = error{
 ///
 /// It is the construction nghttp2 uses and the one whose correctness is easiest
 /// to argue: validity falls out of the same table read, and the failure state
-/// is absorbing by construction. `decode` is 1.25x to 1.43x faster and has to agree
-/// with this on every input, which the differential tests and the fuzz target
-/// enforce. Keeping it is what makes that comparison possible.
+/// is absorbing by construction. `decode` has to agree with this on every
+/// input, which the differential tests and the fuzz target enforce, and keeping
+/// it is what makes that comparison possible.
+///
+/// This used to say `decode` is 1.25x to 1.43x faster. It measures slower on
+/// the machine this was last run on — see the module comment, which has the
+/// numbers and the reasons not to over-read them.
 ///
 /// The loop carries no failure branch on purpose. The failure state absorbs and
 /// emits nothing, so a malformed input stops producing output at the point it

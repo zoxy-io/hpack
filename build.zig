@@ -29,7 +29,7 @@ pub fn build(b: *std.Build) void {
     // identical contents. The marker is never read; its whole job is to differ.
     hpack_options.addOption([]const u8, "package", "hpack");
 
-    // The public module: consumers `@import("h3")` this.
+    // The public module: consumers `@import("hpack")` this.
     const hpack_module = b.addModule("hpack", .{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
