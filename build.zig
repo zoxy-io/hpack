@@ -130,6 +130,21 @@ pub fn build(b: *std.Build) void {
     const example_step = b.step("example", "Build and run the README's usage example");
     example_step.dependOn(&example_run.step);
 
+    // Interoperability conformance against vendored encodings from other
+    // implementations. Its own binary because it needs an allocator, a JSON
+    // parser and 828 KiB of fixtures, none of which belong in the package.
+    const corpus_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("corpus/all.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{.{ .name = "hpack", .module = hpack_module }},
+        }),
+    });
+    const corpus_run = b.addRunArtifact(corpus_tests);
+    const corpus_step = b.step("corpus", "Vendored corpus: HPACK interoperability against other implementations");
+    corpus_step.dependOn(&corpus_run.step);
+
     // A negative fixture: `checks/` holds files that must FAIL to compile. This
     // one proves that a `comptime` assertion is still checked with
     // `-Dassertions=false`, which no `test` block can express.
@@ -151,6 +166,7 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&lint_tests.step);
     // A corpus replayed only under `zig build fuzz` is a corpus that rots.
     test_step.dependOn(&fuzz_run.step);
+    test_step.dependOn(&corpus_run.step);
     // So that `zig build ci` fails on a README example that stopped compiling.
     test_step.dependOn(&example_run.step);
     test_step.dependOn(&comptime_check.step);
@@ -158,7 +174,7 @@ pub fn build(b: *std.Build) void {
     // The format gate. A build step rather than a documented `zig fmt --check`
     // incantation, so that the list of formatted paths lives in exactly one
     // place and CI cannot check a different set than a developer does.
-    const fmt_paths = &.{ "src", "scripts", "bench", "fuzz", "example", "checks", "build.zig", "build.zig.zon" };
+    const fmt_paths = &.{ "src", "scripts", "bench", "fuzz", "example", "checks", "corpus/all.zig", "corpus/hpack.zig", "build.zig", "build.zig.zon" };
     const fmt_check = b.addFmt(.{ .paths = fmt_paths, .check = true });
     const fmt_step = b.step("fmt", "Check formatting (zig build fmt-fix rewrites)");
     fmt_step.dependOn(&fmt_check.step);

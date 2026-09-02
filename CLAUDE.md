@@ -1,10 +1,14 @@
 # hpack
 
-RFC 7541's Huffman code and prefixed integer, in Zig 0.16 — the parts RFC 9204
-adopts verbatim, extracted so that HTTP/2 and HTTP/3 share one copy. Consumed by
-[zoxy-io/h2](https://github.com/zoxy-io/h2) at `Integer(u32)` and
-[zoxy-io/h3](https://github.com/zoxy-io/h3) at `Integer(u62)`. Read before
-writing code:
+HPACK (RFC 7541) in Zig 0.16, whole: the Huffman code, the prefixed integer,
+both tables, and the field line representations either side of them.
+
+It is a package of its own rather than a directory in h2 because QPACK adopts
+two of its pieces unchanged (RFC 9204 sections 4.1.1 and 4.1.2), so
+[zoxy-io/h3](https://github.com/zoxy-io/h3) builds against `huffman` and
+`integer` and nothing else here. [zoxy-io/h2](https://github.com/zoxy-io/h2)
+re-exports the whole package as `h2.hpack`, which is the spelling its own
+consumers already use. Read before writing code:
 
 - [docs/TIGER_STYLE.md](docs/TIGER_STYLE.md) — enforced coding rules. h2's, plus
   the deltas being the bottom of the dependency graph forces.
@@ -43,10 +47,14 @@ Run the `tiger-style-reviewer` agent on the diff before committing a slice.
   error, same amount written, on every path. That is a fuzz target, and it is a
   correctness rule rather than a performance one: a faster decoder that accepts
   one input the reference rejects is a second spelling of a header value.
+  Note **which of the two is faster is currently an open question** — the
+  ordering inverts between aarch64 and x86_64, and README.md has the numbers.
+  Do not repeat the "the window is faster" claim without a fresh measurement.
 - **Every bound is a named constant** with a comptime assert relating it to its
   neighbours and a comment naming the RFC clause it comes from.
 - **Every parsing change ships with its fuzz coverage.**
 - **Write to zoxy's threat model**, which is the stricter one.
 - **Workflow:** small slices, one commit per slice, descriptive commit messages.
   Push and open PRs only when asked. A change to the public API here is a change
-  to two downstream packages — say so in the commit message.
+  to h2 and h3 both — say so in the commit message, and remember h2 re-exports
+  this package wholesale, so a rename here reaches zrk and zoxy.

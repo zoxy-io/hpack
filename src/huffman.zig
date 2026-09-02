@@ -768,7 +768,7 @@ test "the window agrees with the automaton on the RFC vectors and long input" {
     var reference: [4096]u8 = undefined;
     var fast: [4096]u8 = undefined;
 
-    for (@import("rfc7541_strings.zig").huffman_strings) |vector| {
+    for (@import("rfc7541_examples.zig").huffman_strings) |vector| {
         try expectSameDecode(&reference, &fast, vector.wire);
     }
 
@@ -819,7 +819,7 @@ test "the automaton has the state count the construction predicts" {
 test "RFC 7541 Appendix C: every Huffman string, both directions" {
     var decoded: [128]u8 = undefined;
     var encoded: [128]u8 = undefined;
-    for (@import("rfc7541_strings.zig").huffman_strings) |vector| {
+    for (@import("rfc7541_examples.zig").huffman_strings) |vector| {
         const written = try decode(&decoded, vector.wire);
         try std.testing.expectEqualStrings(vector.text, decoded[0..written]);
 

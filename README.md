@@ -99,16 +99,32 @@ const written = try hpack.huffman.decode(&text, wire[length.octets..][0..length.
 
 `decode` reads twelve bits per lookup and emits up to two symbols;
 `decodeReference` is the nibble automaton of Pajarola's *Fast Prefix Code
-Processing* (2003), which nghttp2 has used since 2014. The window is what ships,
-and the case for it rests on two things the gates check:
+Processing* (2003), which nghttp2 has used since 2014. `decode` is the one
+consumers call, and the property that makes shipping it safe is that the two are
+**indistinguishable** — same octets, same errors, same amount written, including
+on the error paths. That is a fuzz target ([`fuzz/fuzz.zig`](fuzz/fuzz.zig)),
+not a benchmark, because a faster decoder that accepts one input the reference
+rejects is a second spelling of a header value and therefore a smuggling
+primitive.
 
-* it is faster — 92 ns against 119 ns per field value on one laptop
-  (`zig build bench`), and
-* it is **indistinguishable** — same octets, same errors, same amount written,
-  including on the error paths. That is a fuzz target
-  ([`fuzz/fuzz.zig`](fuzz/fuzz.zig)), not a benchmark, because a faster decoder
-  that accepts one input the reference rejects is a second spelling of a header
-  value and therefore a smuggling primitive.
+**Which of the two is actually faster is an open question**, and the honest
+answer today is "it depends on the machine, and nobody has re-measured".
+`decode` was chosen in h2 against a measurement on an M-series laptop. On an
+x86_64 Linux box the ordering inverts, and by a wide margin:
+
+| row | `decode` (window) | `decodeReference` (automaton) |
+|---|---:|---:|
+| `huffman decode` (13 octets) | 48.9 ns | **31.5 ns** |
+| `huffman decode long` (~170 octets) | 261.0 ns | **201.8 ns** |
+
+`zig build bench`, 5 x 1M, and the same numbers come out of h2 at the commit
+this package was extracted from — so this is a pre-existing question the move
+inherited, not one it introduced. The window's other property still holds and is
+the reason it is not simply deleted: its table is 16 KiB where the automaton's
+is 16352 octets plus a second 16 KiB of transitions, and h2's argument was about
+staying resident beside a proxy's working set rather than about a tight loop.
+Settling it wants a measurement on both architectures with cache counters, not
+another laptop run.
 
 A consumer that never calls `decodeReference` does not pay for its table: a
 binary calling only `decode` is 16352 octets smaller.

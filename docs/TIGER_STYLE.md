@@ -70,8 +70,9 @@ detects comptime and ignores the option — and why
 
 ### Two kernels, one behaviour
 
-The package ships two Huffman decoders and the faster one is what consumers
-call. The rule that makes that safe: **they must be indistinguishable — same
+The package ships two Huffman decoders and `decode` is what consumers call.
+(Which of the two is *faster* is an open question — the ordering inverts between
+architectures; see README.md.) The rule that makes shipping either safe: **they must be indistinguishable — same
 octets, same error, same amount written, including on the error paths.** That is
 a fuzz target rather than a test, because the interesting inputs are the ones
 that reach an escape or an accumulator refill, and it is not a performance
