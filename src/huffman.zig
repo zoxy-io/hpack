@@ -124,11 +124,11 @@ const Tree = struct {
 
 fn buildTree() Tree {
     var built: Tree = .{
-        .child = [_][2]u16{[2]u16{ node_none, node_none }} ** nodes_max,
-        .symbol = [_]u16{0} ** nodes_max,
-        .is_leaf = [_]bool{false} ** nodes_max,
-        .depth = [_]u8{0} ** nodes_max,
-        .all_ones = [_]bool{false} ** nodes_max,
+        .child = @splat(.{ node_none, node_none }),
+        .symbol = @splat(0),
+        .is_leaf = @splat(false),
+        .depth = @splat(0),
+        .all_ones = @splat(false),
         .count = 1,
     };
     built.all_ones[0] = true;
@@ -225,12 +225,12 @@ fn buildMachine() Machine {
     assert(tree.count == nodes_max);
 
     var built: Machine = .{
-        .transitions = [_][16]Transition{[_]Transition{Transition.blank} ** 16} ** states_max,
-        .accepting = [_]bool{false} ** states_max,
+        .transitions = @splat(@splat(Transition.blank)),
+        .accepting = @splat(false),
         .count = 1,
     };
-    var state_of_node = [_]u16{node_none} ** nodes_max;
-    var node_of_state = [_]u16{0} ** states_max;
+    var state_of_node: [nodes_max]u16 = @splat(node_none);
+    var node_of_state: [states_max]u16 = @splat(0);
     state_of_node[0] = 0;
 
     var state: u16 = 0;
@@ -461,10 +461,10 @@ const Canonical = struct {
 const canonical = blk: {
     @setEvalBranchQuota(200_000);
     var built: Canonical = .{
-        .first_code = [_]u32{0} ** (bits_max + 1),
-        .first_index = [_]u16{0} ** (bits_max + 1),
-        .count = [_]u16{0} ** (bits_max + 1),
-        .symbols = [_]u16{0} ** (eos + 1),
+        .first_code = @splat(0),
+        .first_index = @splat(0),
+        .count = @splat(0),
+        .symbols = @splat(0),
     };
 
     var index: u32 = 0;

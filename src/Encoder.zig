@@ -972,7 +972,7 @@ test "huffman is used only when it is shorter" {
     // Value header is at index 3: 0x00, name length, 'x', then the value.
     try testing.expect(block[3] & 0x80 != 0);
 
-    const incompressible = [_]Field{.{ .name = "x", .value = &[_]u8{0xff} ** 16 }};
+    const incompressible = [_]Field{.{ .name = "x", .value = &@as([16]u8, @splat(0xff)) }};
     _ = encoder.encode(&block, &incompressible);
     try testing.expect(block[3] & 0x80 == 0);
 }
@@ -1021,7 +1021,7 @@ test "an oversized field clears both tables in step" {
 
     const fields = [_]Field{
         .{ .name = "a", .value = "1" },
-        .{ .name = "big", .value = "0123456789" ** 4 },
+        .{ .name = "big", .value = "0123456789" ++ "0123456789" ++ "0123456789" ++ "0123456789" },
     };
     var block: [256]u8 = undefined;
     const result = encoder.encode(&block, &fields);

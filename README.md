@@ -7,7 +7,7 @@
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/zoxy-io/hpack/test-macos.yml?label=macos)
 
 HPACK ([RFC 7541](https://www.rfc-editor.org/rfc/rfc7541)) header compression
-for Zig 0.16.
+for Zig 0.17.
 
 hpack implements the whole RFC: the encoder and decoder, the static and
 dynamic tables, the Huffman code and the prefixed integer. The last two are

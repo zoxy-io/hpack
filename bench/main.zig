@@ -620,7 +620,7 @@ fn report(results: []const Result, iterations: u64) void {
     std.debug.print("\n{s:<24} {s:>12} {s:>12} {s:>12} {s:>12}\n", .{
         "workload", "min", "mean", "max", "ns/op",
     });
-    std.debug.print("{s}\n", .{"-" ** 77});
+    std.debug.print("{s}\n", .{&@as([77]u8, @splat('-'))});
     for (results) |result| {
         assert(result.min_ns <= result.max_ns);
         std.debug.print("{s:<24} {d:>11.3}s {d:>11.3}s {d:>11.3}s {d:>12.3}\n", .{
