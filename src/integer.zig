@@ -393,7 +393,7 @@ test "truncated encodings report Incomplete, never a short value" {
 test "an unbounded continuation run terminates as TooLarge" {
     // The shape a decoder without this bound follows forever, at both widths:
     // the wide one walks four octets further and then stops just the same.
-    const bomb = [_]u8{0xff} ** 64;
+    const bomb: [64]u8 = @splat(0xff);
     inline for (.{ Hpack, Qpack }) |integer| {
         try testing.expectError(error.TooLarge, integer.decode(&bomb, 5));
         try testing.expectError(error.TooLarge, integer.decode(&bomb, 7));

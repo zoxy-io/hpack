@@ -451,7 +451,7 @@ test "an entry larger than the capacity empties the table" {
 
     // RFC 7541 section 4.4: not an error, and the table ends up empty.
     // 3 + 40 + 32 = 75, past the 68 this table holds.
-    table.insert(.{ .name = "far", .value = "0123456789" ** 4 });
+    table.insert(.{ .name = "far", .value = "0123456789" ++ "0123456789" ++ "0123456789" ++ "0123456789" });
     try testing.expectEqual(@as(u32, 0), table.count);
     try testing.expectEqual(@as(u32, 0), table.size);
 }

@@ -517,7 +517,7 @@ test "a literal with an indexed dynamic name copies the name and not the value" 
 
     // Seed one entry with a short name and a long value.
     var seed_buffer: [256]u8 = undefined;
-    const seed = [_]u8{ 0x40, 0x02, 'a', 'b', 0x14 } ++ ("v".* ** 20);
+    const seed = [_]u8{ 0x40, 0x02, 'a', 'b', 0x14 } ++ @as([20]u8, @splat('v'));
     var seed_iterator = decoder.iterate(&seed_buffer, &seed);
     try testing.expect((try seed_iterator.next()) != null);
 

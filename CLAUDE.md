@@ -1,6 +1,6 @@
 # hpack
 
-HPACK (RFC 7541) in Zig 0.16, whole: the Huffman code, the prefixed integer,
+HPACK (RFC 7541) in Zig 0.17, whole: the Huffman code, the prefixed integer,
 both tables, and the field line representations either side of them.
 
 It is a package of its own rather than a directory in h2 because QPACK adopts
